@@ -1,19 +1,47 @@
 require('dotenv').config();
 const app = require('./app');
-const connectDB = require('./config/database');
+const { connectDatabase } = require('./config/database');
 
 const PORT = process.env.PORT || 3000;
 
-const start = async () => {
+async function startServer() {
   try {
-    await connectDB();
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+   
+    await connectDatabase();
+
+    const server = app.listen(PORT, '0.0.0.0', () => {
+      console.log(`[SERVER] MySwasthya backend running on port ${PORT}`);
+      console.log(`[SERVER] Environment: ${process.env.NODE_ENV || 'development'}`);
+
+      
+      const required = ['JWT_SECRET', 'ENCRYPTION_KEY', 'HMAC_SECRET', 'MONGODB_URI'];
+      const missing = required.filter((key) => !process.env[key]);
+      if (missing.length > 0) {
+        console.error(`[SECURITY WARNING] Missing required environment variables: ${missing.join(', ')}`);
+      }
     });
-  } catch (error) {
-    console.error(error);
+
+   
+    process.on('SIGTERM', () => {
+      console.log('[SERVER] SIGTERM received - shutting down gracefully');
+      server.close(() => {
+        console.log('[SERVER] Server closed');
+        process.exit(0);
+      });
+    });
+
+    process.on('SIGINT', () => {
+      console.log('[SERVER] SIGINT received - shutting down gracefully');
+      server.close(() => {
+        console.log('[SERVER] Server closed');
+        process.exit(0);
+      });
+    });
+
+  } catch (err) {
+    console.error('[SERVER] Fatal error during startup:', err.message);
     process.exit(1);
   }
-};
+}
 
-start();
+startServer();
