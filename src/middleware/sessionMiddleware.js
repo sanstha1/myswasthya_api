@@ -1,32 +1,61 @@
 const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
+const { v4: uuidv4 } = require('uuid');
 
-function generateJWTToken(user) {
-  return jwt.sign(
-    { 
-      userId: user.id, 
-      email: user.email,
-      sessionId: crypto.randomBytes(16).toString('hex')
+// JWT expiry set to 30days - balances security with usability
+const JWT_EXPIRY = '30d';
+
+/**
+ * Generate JWT token with session tracking
+ */
+function generateJWTToken(userId, email) {
+  const sessionId = uuidv4();
+
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable not set');
+  }
+
+  const token = jwt.sign(
+    {
+      userId: userId.toString(),
+      email,
+      sessionId,
     },
     process.env.JWT_SECRET,
-    { expiresIn: '24h' }
+    {
+      expiresIn: JWT_EXPIRY,
+      issuer: 'myswasthya',
+      audience: 'myswasthya-users',
+    }
   );
+
+  return { token, sessionId };
 }
 
-function verifyJWTToken(token) {
-  try {
-    return jwt.verify(token, process.env.JWT_SECRET);
-  } catch (error) {
-    return null;
-  }
+
+function getSessionCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 24 * 60 * 60 * 1000,
+    path: '/',
+  };
 }
 
-const sessionCookieOptions = {
-  httpOnly: true,
-  secure: true,
-  sameSite: 'strict',
-  maxAge: 24 * 60 * 60 * 1000,
-  path: '/'
+/**
+ * Cookie options for clearing the session cookie on logout
+ */
+function getClearCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    path: '/',
+  };
+}
+
+module.exports = {
+  generateJWTToken,
+  getSessionCookieOptions,
+  getClearCookieOptions,
 };
-
-module.exports = { generateJWTToken, verifyJWTToken, sessionCookieOptions };
