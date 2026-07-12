@@ -7,7 +7,6 @@ const profileSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: [true, 'User ID is required'],
-      unique: true,
     },
 
     fullName: {
