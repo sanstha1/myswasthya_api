@@ -13,7 +13,6 @@ require('./config/passport');
 const authRoutes = require('./routes/authRoutes');
 const profileRoutes = require('./routes/profileRoutes');
 const recordRoutes = require('./routes/recordRoutes');
-const transactionRoutes = require('./routes/transactionRoutes');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -111,7 +110,6 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/records', recordRoutes);
-app.use('/api/transactions', transactionRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

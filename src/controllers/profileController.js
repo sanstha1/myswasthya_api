@@ -1,7 +1,6 @@
 const Profile = require('../models/Profile');
 const User = require('../models/User');
 const MedicalRecord = require('../models/MedicalRecord');
-const Transaction = require('../models/Transaction');
 const { logAction } = require('../middleware/loggingMiddleware');
 const { z } = require('zod');
 const escapeHtml = require('escape-html');
