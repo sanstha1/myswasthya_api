@@ -42,7 +42,7 @@ const userSchema = new mongoose.Schema(
     failedLoginAttempts: { type: Number, default: 0, min: 0 },
     lockedUntil: { type: Date, default: null },
 
-    // SECURITY: OAuth 2.0 provider fields
+    // SECURITY: OAuth 2.0 provider fields for Google login
     oauthProvider: {
       type: String,
       enum: ['google', null],
@@ -50,7 +50,6 @@ const userSchema = new mongoose.Schema(
     },
     oauthId: { type: String, default: null },
 
-    // Session tracking for multi-device management
     activeSessions: {
       type: [
         {
@@ -82,7 +81,7 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-userSchema.index({ email: 1 }, { unique: true });
+// SECURITY: unique: true in field definition handles the email index - no duplicate needed
 userSchema.index({ oauthId: 1 });
 userSchema.index({ lockedUntil: 1 });
 userSchema.index({ createdAt: 1 });

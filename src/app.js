@@ -4,6 +4,11 @@ const helmet = require('helmet');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
+const session = require('express-session');
+const passport = require('passport');
+
+// SECURITY: Load passport Google OAuth strategy
+require('./config/passport');
 
 const authRoutes = require('./routes/authRoutes');
 const profileRoutes = require('./routes/profileRoutes');
@@ -13,7 +18,7 @@ const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 
 const app = express();
 
-//  Helmet sets secure HTTP headers (CSP, HSTS, nosniff, X-Frame-Options, etc.)
+// SECURITY: Helmet sets secure HTTP headers (CSP, HSTS, nosniff, X-Frame-Options)
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -29,23 +34,20 @@ app.use(
         frameSrc: ["'none'"],
       },
     },
-    // HSTS - forces HTTPS for 1 year, includes subdomains
+    // SECURITY: HSTS forces HTTPS for 1 year including subdomains
     hsts: {
       maxAge: 31536000,
       includeSubDomains: true,
       preload: true,
     },
-    //  Prevents MIME-type sniffing attacks
     noSniff: true,
-    //  Prevents clickjacking via iframes
     frameguard: { action: 'deny' },
-    // Disables browser XSS filter (CSP is more reliable)
     xssFilter: true,
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   })
 );
 
-// Permissions-Policy disables unused browser features
+// SECURITY: Permissions-Policy disables unused browser features
 app.use((req, res, next) => {
   res.setHeader(
     'Permissions-Policy',
@@ -54,18 +56,19 @@ app.use((req, res, next) => {
   next();
 });
 
+// SECURITY: CORS restricted to frontend origin only - no wildcards
 app.use(
   cors({
     origin: process.env.FRONTEND_URL || 'http://localhost:3001',
-    credentials: true,       
+    credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     exposedHeaders: ['X-Total-Count'],
-    maxAge: 86400,            
+    maxAge: 86400,
   })
 );
 
-
+// SECURITY: Global rate limiting - 100 requests per 15 minutes per IP
 const globalRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -75,30 +78,42 @@ const globalRateLimit = rateLimit({
     success: false,
     message: 'Too many requests from this IP, please try again after 15 minutes',
   },
-  // SECURITY: Return 429 status code as per RFC 6585
   statusCode: 429,
 });
 app.use(globalRateLimit);
 
-// Parse JSON and URL-encoded bodies
-// Limit payload size to 50kb to prevent DoS via large payloads
+// SECURITY: Body size limited to 50kb to prevent DoS via large payloads
 app.use(express.json({ limit: '50kb' }));
 app.use(express.urlencoded({ extended: true, limit: '50kb' }));
 app.use(cookieParser());
 
-// Health check endpoint (no auth required)
+// SECURITY: Session used only for OAuth handshake (5 min TTL), not for app auth
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      maxAge: 5 * 60 * 1000,
+    },
+  })
+);
+
+app.use(passport.initialize());
+app.use(passport.session());
+
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Mount routes
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/records', recordRoutes);
 app.use('/api/transactions', transactionRoutes);
 
 app.use(notFoundHandler);
-
 app.use(errorHandler);
 
 module.exports = app;
