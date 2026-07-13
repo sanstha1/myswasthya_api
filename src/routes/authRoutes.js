@@ -1,6 +1,8 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
+const passport = require('passport');
 const router = express.Router();
+
 const {
   register,
   login,
@@ -12,16 +14,15 @@ const {
   getSessions,
   logoutOtherSessions,
 } = require('../controllers/authController');
+const { googleCallback, googleFailure } = require('../controllers/oauthController');
 const { authenticate } = require('../middleware/authMiddleware');
 
-// Strict rate limiting on authentication endpoints
-// 5 requests per 15 minutes per IP prevents brute-force attacks
+// SECURITY: Strict rate limiting on authentication endpoints
 const authRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
-  skipSuccessfulRequests: false,
   message: {
     success: false,
     message: 'Too many login attempts. Please try again after 15 minutes.',
@@ -29,7 +30,6 @@ const authRateLimit = rateLimit({
   statusCode: 429,
 });
 
-//Slightly more lenient limit for registration (still rate-limited)
 const registerRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 5,
@@ -40,11 +40,33 @@ const registerRateLimit = rateLimit({
   statusCode: 429,
 });
 
-// Public routes (no authentication required)
+// Public routes
 router.post('/register', registerRateLimit, register);
-router.post('/login', authRateLimit, login);  // Rate limited
+router.post('/login', authRateLimit, login);
 
-// Protected routes (require valid JWT)
+// SECURITY: Google OAuth 2.0 routes
+// Initiates OAuth flow - redirects to Google consent screen
+router.get(
+  '/google',
+  passport.authenticate('google', {
+    scope: ['profile', 'email'],
+    session: false,
+  })
+);
+
+// SECURITY: Google OAuth callback - receives authorization code from Google
+router.get(
+  '/google/callback',
+  passport.authenticate('google', {
+    session: false,
+    failureRedirect: '/api/auth/google/failure',
+  }),
+  googleCallback
+);
+
+router.get('/google/failure', googleFailure);
+
+// Protected routes
 router.post('/logout', authenticate, logout);
 router.post('/change-password', authenticate, changePassword);
 router.post('/enable-mfa', authenticate, enableMFA);
