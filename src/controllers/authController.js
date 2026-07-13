@@ -155,18 +155,18 @@ async function login(req, res) {
       // Increment failed attempts counter
       user.failedLoginAttempts += 1;
 
-      // Lock account after 5 failed attempts for 15 minutes
-      if (user.failedLoginAttempts >= 5) {
-        user.lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
-        user.failedLoginAttempts = 0;
-        await user.save();
-        await logAction(user._id, 'account_locked', req, { email });
-        return res.status(423).json({
-          success: false,
-          message: 'Account locked after 5 failed attempts. Please try again in 15 minutes.',
-          showCaptcha: true,
-        });
-      }
+    // SECURITY: Lock account after 10 failed attempts for 15 minutes
+    if (user.failedLoginAttempts >= 10) {
+      user.lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
+      user.failedLoginAttempts = 0;
+      await user.save();
+      await logAction(user._id, 'account_locked', req, { email });
+      return res.status(423).json({
+        success: false,
+        message: 'Account locked after 10 failed attempts. Please try again in 15 minutes.',
+        showCaptcha: true,
+      });
+    }
 
       await user.save();
       await logAction(user._id, 'login_failed', req, {
