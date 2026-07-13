@@ -13,7 +13,7 @@ async function logAction(userId, action, req, details = {}) {
     await AuditLog.create({
       userId: userId || null,
       action,
-      resource: req?.originalUrl || null,
+      resource: req?.originalUrl?.slice(0, 200) || null,
       ipAddress: getClientIP(req),
       userAgent: req?.headers?.['user-agent']?.slice(0, 500) || null,
       details: safeDetails,
