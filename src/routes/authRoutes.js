@@ -64,6 +64,16 @@ router.get(
   googleCallback
 );
 
+router.get('/me', authenticate, (req, res) => {
+  res.status(200).json({
+    success: true,
+    data: {
+      userId: req.user.userId,
+      email: req.user.email,
+    },
+  });
+});
+
 router.get('/google/failure', googleFailure);
 
 // Protected routes
