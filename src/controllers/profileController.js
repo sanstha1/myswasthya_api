@@ -131,11 +131,10 @@ async function exportData(req, res) {
   try {
     const { userId } = req.user;
 
-    const [user, profile, records, transactions] = await Promise.all([
+    const [user, profile, records] = await Promise.all([
       User.findById(userId).select('email createdAt lastLogin isActive'),
       Profile.findOne({ userId }),
       MedicalRecord.find({ userId }).select('-filePath'),
-      Transaction.find({ userId }).select('-signature'),
     ]);
 
     const exportData = {
@@ -143,7 +142,6 @@ async function exportData(req, res) {
       user: user || {},
       profile: profile || {},
       medicalRecords: records || [],
-      transactions: transactions || [],
     };
 
     await logAction(userId, 'export_data', req);
