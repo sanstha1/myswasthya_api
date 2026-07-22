@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const Profile = require('../models/Profile');
+const MedicalRecord = require('../models/MedicalRecord');
 const { hashPassword, verifyPassword, validatePasswordComplexity, checkPasswordStrength, isPasswordInHistory } = require('../utils/passwordUtils');
 const { generateTOTPSecret, generateTOTPQRCode, verifyTOTPCode, generateBackupCodes } = require('../utils/totpUtils');
 const { generateJWTToken, getSessionCookieOptions, getClearCookieOptions } = require('../middleware/sessionMiddleware');
@@ -536,6 +537,52 @@ async function logoutOtherSessions(req, res) {
   }
 }
 
+/**
+ * POST /api/auth/delete-account
+ * Requires password verification before permanently deleting the account
+ * Removes User, Profile, and MedicalRecord data tied to the authenticated userId
+ */
+async function deleteAccount(req, res) {
+  try {
+    const { userId } = req.user;
+    const { password } = req.body;
+
+    if (!password) {
+      return res.status(400).json({ success: false, message: 'Password is required to delete account' });
+    }
+
+    const user = await User.findById(userId).select('+passwordHash');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Re-authenticate with password before deleting the account
+    const isPasswordValid = await verifyPassword(user.passwordHash, password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ success: false, message: 'Incorrect password' });
+    }
+
+    await logAction(userId, 'delete_account', req);
+
+    // Remove all data tied to this user
+    await MedicalRecord.deleteMany({ userId });
+    await Profile.deleteOne({ userId });
+    await User.findByIdAndDelete(userId);
+
+    // Clear the httpOnly cookie
+    res.clearCookie('authToken', getClearCookieOptions());
+
+    return res.status(200).json({
+      success: true,
+      message: 'Account deleted successfully',
+    });
+
+  } catch (err) {
+    console.error('[AUTH] Delete account error:', err.message);
+    return res.status(500).json({ success: false, message: 'Account deletion failed' });
+  }
+}
+
 module.exports = {
   register,
   login,
@@ -546,4 +593,5 @@ module.exports = {
   disableMFA,
   getSessions,
   logoutOtherSessions,
+  deleteAccount,
 };
