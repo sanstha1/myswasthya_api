@@ -73,7 +73,7 @@ async function checkSecurityAlerts(userId, action, req) {
       timestamp: { $gte: fifteenMinutesAgo },
     });
 
-    if (recentFailures >= 5) {
+    if (recentFailures >= 10) {
       console.warn(`[SECURITY ALERT] Brute-force detected for userId: ${userId} - ${recentFailures} failed logins in 15 minutes`);
     }
   }
